@@ -18,18 +18,42 @@ namespace ClinicApp.Controllers
         [HttpPost("RegisterPatient")]
         public IActionResult RegisterPatient([FromBody] UserModel newuser)
         {
-
-            return Ok();
+            if (newuser != null)
+            {
+                var clinicdata = new HospitalManagementSystemContext();
+                var currentUser = clinicdata.AllUsers.FirstOrDefault(o => o.Username.ToLower() == newuser.Username.ToLower());
+                if (currentUser != null && currentUser.Username.ToLower() == newuser.Username.ToString().ToLower())
+                {
+                    return BadRequest("User Name must be unique");
+                }
+                AllUsers Users = new AllUsers();
+                Users.Username = newuser.Username;
+                Users.Password = newuser.Password;
+                Users.Role =  "Patient";
+                clinicdata.AllUsers.Add(Users);
+                clinicdata.SaveChanges();
+                return Ok("Registered");
+            }
+            return BadRequest("Error");
 
         }
-      //  [Authorize(Roles = "Patient")]
+       // [Authorize(Roles = "Patient")]
         [HttpPost("BookAppoinment")]
         public IActionResult BookAppoinment([FromBody] BookAppointment appointment)
         {
-
             if (appointment != null)
             {
-               
+                var clinicdata = new HospitalManagementSystemContext();
+                //var results = from apointment in clinicdata.Appointment
+                //              group apointment by apointment.DoctorId into g
+                //              select new
+                //              {
+                //                  ProductName = g.First().DoctorId,
+                //                  Price = g.Sum(pc => TimeSpan.Parse(pc.Duration).Minutes).ToString(),
+                //                  Quantity = g.Count().ToString(),
+                //              };
+
+                
                 TimeSpan ts = appointment.EndTime - appointment.StartTime;
 
                 if (ts.TotalMinutes < 15)
@@ -40,40 +64,55 @@ namespace ClinicApp.Controllers
                 {
                     return BadRequest("Maximum appointment duration must be 2 hrs");
                 }
+                else if ( clinicdata.Appointment.Where(e => e.DoctorId == appointment.DoctorId && e.Datetime.Date == appointment.Datetime.Date).Count() > 12)
+                {
+                    return BadRequest("appointments  limit reached to 12 ,SorryNo Slot free");
+                }
                 else
                 {
-                    var clinicdata = new HospitalManagementSystemContext();
-                    Patient patient = new Patient();
-                    patient.FirstName = appointment.FirstName;
-                    patient.LastName = appointment.LastName;
-                    patient.Address = appointment.Address;
-                    patient.PatientId = Convert.ToInt32(clinicdata.Patient.Max(e => e.PatientId));
-
-                    patient.Age = appointment.Age;
-                    patient.Gender = appointment.Gender;
-                    patient.Phonenumber = appointment.Phonenumber;
-                    patient.Username = appointment.Username;
-                    //User Object Creation
-                    AllUsers User = new AllUsers();
-                    User.Username = appointment.Username;
-                    User.Password = appointment.Patientpwd;
-                    User.Role = "Patient";
-                    clinicdata.AllUsers.Add(User);
-                    clinicdata.Patient.Add(patient);
-                    //Appointment object
-                    var count = clinicdata.Appointment.Where(e => e.DoctorId==1 && e.PatientId==1).Count();
-                    var ab = clinicdata.Appointment.Where( e => e.DoctorId==1 && e.PatientId==1);
-                 //   var ab1 = clinicdata.Appointment.Where(e => e.PatientId == 1).Sum(e => TimeSpan (e.Duration2));
-                    Appointment appointtment_booked = new Appointment();
-                    appointtment_booked.PatientId= patient.PatientId;
+                    Appointment appointtment_booked = new Appointment();         
                     appointtment_booked.DoctorId = appointment.DoctorId;
-                    appointment.Appointmentreason = appointment.Appointmentreason;
-                    appointment.Datetime = appointment.Datetime;
+                    appointtment_booked.Appointmentreason = appointment.Appointmentreason;
+                    appointtment_booked.Datetime = appointment.Datetime;
                     appointtment_booked.StartTime = appointment.StartTime;
                     appointtment_booked.EndTime = appointment.EndTime;
-                    appointment.Duration = ts.ToString();                  
+                    appointtment_booked.Duration = ts.ToString();
                     appointtment_booked.Deleted = false;
-                    clinicdata.Appointment.Add(appointtment_booked);
+                    var currentUser = clinicdata.Patient.FirstOrDefault(o => o.Username.ToLower() == appointment.Username.ToLower());
+                    //
+                    if (currentUser != null && currentUser.Username.ToLower() == currentUser.Username.ToString().ToLower())
+                    {
+                        //patient  already exist just  update patient info and creat new appointment
+                        currentUser.FirstName = appointment.FirstName;
+                        currentUser.LastName = appointment.LastName;
+                        currentUser.Address = appointment.Address;
+                        currentUser.Age = appointment.Age;
+                        currentUser.Gender = appointment.Gender;
+                        currentUser.Phonenumber = appointment.Phonenumber;
+                        currentUser.Username = appointment.Username;
+                        appointtment_booked.PatientId = currentUser.PatientId;
+                        clinicdata.Patient.Update(currentUser);
+                        clinicdata.Appointment.Add(appointtment_booked);
+                        clinicdata.SaveChanges();
+                    }
+                    else
+                    {
+                        // Create New Pateint 
+                        Patient patient = new Patient();
+                        patient.FirstName = appointment.FirstName;
+                        patient.LastName = appointment.LastName;
+                        patient.Address = appointment.Address;
+                        patient.Age = appointment.Age;
+                        patient.Gender = appointment.Gender;
+                        patient.Phonenumber = appointment.Phonenumber;
+                        patient.Username = appointment.Username;
+                        int PatientId = Convert.ToInt32(clinicdata.Patient.Max(e => e.PatientId)) +1;
+                        appointtment_booked.PatientId = PatientId;
+                        clinicdata.Patient.Add(patient);
+                        clinicdata.Appointment.Add(appointtment_booked);
+                        clinicdata.SaveChanges();
+                    }
+       
                     return Ok("Appointment Booked");
                 }
                    
