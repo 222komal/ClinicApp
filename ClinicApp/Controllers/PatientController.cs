@@ -14,6 +14,7 @@ namespace ClinicApp.Controllers
     {
 
 
+        //Register Patient end point
         [Authorize(Roles = "Patient")]
         [HttpPost("RegisterPatient")]
         public IActionResult RegisterPatient([FromBody] UserModel newuser)
@@ -37,23 +38,18 @@ namespace ClinicApp.Controllers
             return BadRequest("Error");
 
         }
-       // [Authorize(Roles = "Patient")]
+
+
+
+        // Patient Book Appointment
+        [Authorize(Roles = "Patient")]
         [HttpPost("BookAppoinment")]
         public IActionResult BookAppoinment([FromBody] BookAppointment appointment)
         {
             if (appointment != null)
             {
                 var clinicdata = new HospitalManagementSystemContext();
-                //var results = from apointment in clinicdata.Appointment
-                //              group apointment by apointment.DoctorId into g
-                //              select new
-                //              {
-                //                  ProductName = g.First().DoctorId,
-                //                  Price = g.Sum(pc => TimeSpan.Parse(pc.Duration).Minutes).ToString(),
-                //                  Quantity = g.Count().ToString(),
-                //              };
 
-                
                 TimeSpan ts = appointment.EndTime - appointment.StartTime;
 
                 if (ts.TotalMinutes < 15)
@@ -123,6 +119,11 @@ namespace ClinicApp.Controllers
             }
                
         }
+
+
+
+
+
         //Patient search Appointment history
         [HttpGet("Patient_Search_Appointment/{PatientId}")]
         [Authorize(Roles = "Patient")]
